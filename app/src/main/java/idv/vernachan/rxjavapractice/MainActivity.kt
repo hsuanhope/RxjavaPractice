@@ -3,11 +3,13 @@ package idv.vernachan.rxjavapractice
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import io.reactivex.*
-import io.reactivex.disposables.Disposable
-import io.reactivex.observables.GroupedObservable
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subscribers.SafeSubscriber
-import io.reactivex.subscribers.SerializedSubscriber
+import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
+import io.reactivex.rxjava3.core.*
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.core.Observer
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.observables.GroupedObservable
+import io.reactivex.rxjava3.schedulers.Schedulers
 import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
@@ -15,12 +17,35 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        //todo 從這裡開始整理開始看
+        //Observable
+        val getObservable = Observable.just(1, 2, 3, 4, 5, 6)
 
-        //subscribeOn - 指定observable應該在哪個scheduler上執行
-        //Schedulers.io()-一種scheduler
+        //Observer
+        val getObserver = object : Observer<Int> {
+            override fun onComplete() {
+                println("onComplete")
+            }
 
+            override fun onSubscribe(d: Disposable) {
+                println("onSubscribe")
+            }
 
+            override fun onNext(t: Int) {
+                println("onNext: $t")
+            }
 
+            override fun onError(e: Throwable) {
+                println("onError")
+            }
+        }
+
+        //Subscription
+        getObservable
+            .filter { it > 3 }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(getObserver)
 
 
     }
@@ -219,8 +244,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     //operator練習-concatMap
-    //連接對應，將資料項經由一個函數後變成多個observable，再發射這些observable
+    //將進來的資料項換成另一個observable資料流
+    //在每次事件發生時都會產生新的 Observable，等前面的 Observable 結束後，「接續」(concat)新產生的 Observable 資料流。
+    //當每個資料流都非常重要不可取消，且必須照著順序執行時使用
     fun operatorConcatMap(){
+        //subscribeOn - 指定observable應該在哪個scheduler上執行
+        //Schedulers.io()-一種scheduler
         Observable.just(1,2,3,4,5,6)
             .concatMap { t -> getModifiedObservable(t) }
             .subscribeOn(Schedulers.io())
@@ -242,6 +271,86 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
+    //operator練習-switchMap
+    //將進來的資料項換成另一個observable資料流
+    //如果上一次轉換的 Observable 還沒完成，會退訂上一次的資料流，並改用新的 Observable
+    //新事件產生的新資料流，過去的資料流不再重要時使用
+    fun operatorSwitchMap(){
+        Observable.just(1,2,3,4,5,6)
+            .switchMap { t -> getModifiedObservable(t) }
+            .subscribeOn(Schedulers.io())
+            .subscribe(object : Observer<Int> {
+                override fun onComplete() {
+                    println("onComplete")
+                }
+
+                override fun onSubscribe(d: Disposable) {
+                    println("onSubscribe")
+                }
+
+                override fun onNext(t: Int) {
+                    println("onNext: $t")
+                }
+
+                override fun onError(e: Throwable) {
+                }
+            })
+    }
+
+    //operator練習-flatMap
+    //跟concatMap用法相同
+    //不會按照資料流順序輸出資料，誰先送出就先輸出
+    fun operatorFlatMap(){
+        Observable.just(1,2,3,4,5,6)
+            .flatMap { t -> getModifiedObservable(t) }
+            .subscribeOn(Schedulers.io())
+            .subscribe(object : Observer<Int> {
+                override fun onComplete() {
+                    println("onComplete")
+                }
+
+                override fun onSubscribe(d: Disposable) {
+                    println("onSubscribe")
+                }
+
+                override fun onNext(t: Int) {
+                    println("onNext: $t")
+                }
+
+                override fun onError(e: Throwable) {
+                }
+            })
+    }
+
+    //operator練習-buffer
+    //定期從observable收集數據到一個集合，然後把數據集合打包發射
+    fun operatorBuffer(){
+        Observable.just("A", "B", "C", "D", "E", "F")
+            .buffer(2)
+            .subscribe(object : Observer<List<String>> {
+                override fun onComplete() {
+                    println("onComplete")
+                }
+
+                override fun onSubscribe(d: Disposable) {
+                    println("onSubscribe")
+                }
+
+                override fun onNext(t: List<String>) {
+                    println("onNext(): ")
+                    for (s in t) {
+                        println("String: $s")
+                    }
+                }
+
+                override fun onError(e: Throwable) {
+
+                }
+            })
+    }
+
+
+    //將資料轉型為Observable
     fun getModifiedObservable(integer: Int): Observable<Int> {
         return Observable.create(object : ObservableOnSubscribe<Int> {
             override fun subscribe(emitter: ObservableEmitter<Int>) {
