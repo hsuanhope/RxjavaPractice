@@ -2,7 +2,6 @@ package idv.vernachan.rxjavapractice
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import io.reactivex.*
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.core.*
 import io.reactivex.rxjava3.core.Observable
@@ -16,37 +15,45 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+    }
 
-        //todo 從這裡開始整理開始看
-        //Observable
-        val getObservable = Observable.just(1, 2, 3, 4, 5, 6)
-
-        //Observer
-        val getObserver = object : Observer<Int> {
-            override fun onComplete() {
-                println("onComplete")
+    fun observerPattern(){
+        //建立observable(被觀察者)
+        val observable = Observable.create<String>(object: ObservableOnSubscribe<String>{
+            override fun subscribe(emitter: ObservableEmitter<String>) {
+                emitter.onNext("This")
+                emitter.onNext("is")
+                emitter.onNext("a")
+                emitter.onNext("Observable")
+                emitter.onComplete()
             }
+        })
 
+        //建立observer(觀察者)
+        val observer = object : Observer<String> {
             override fun onSubscribe(d: Disposable) {
+                //解除訂閱
+                //d.dispose()
+                //是否解除訂閱
+                //d.isDisposed
                 println("onSubscribe")
             }
 
-            override fun onNext(t: Int) {
+            override fun onNext(t: String) {
                 println("onNext: $t")
             }
 
             override fun onError(e: Throwable) {
-                println("onError")
+                println("onError: " + e.message)
+            }
+
+            override fun onComplete() {
+                println("onComplete")
             }
         }
 
-        //Subscription
-        getObservable
-            .filter { it > 3 }
-            .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(getObserver)
-
+        //訂閱
+        observable.subscribe(observer)
 
     }
 
@@ -243,7 +250,7 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
-    //operator練習-concatMap
+    //operator練習-concatMap(有序)
     //將進來的資料項換成另一個observable資料流
     //在每次事件發生時都會產生新的 Observable，等前面的 Observable 結束後，「接續」(concat)新產生的 Observable 資料流。
     //當每個資料流都非常重要不可取消，且必須照著順序執行時使用
@@ -297,7 +304,7 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
-    //operator練習-flatMap
+    //operator練習-flatMap(無序)
     //跟concatMap用法相同
     //不會按照資料流順序輸出資料，誰先送出就先輸出
     fun operatorFlatMap(){
@@ -349,6 +356,43 @@ class MainActivity : AppCompatActivity() {
             })
     }
 
+    //observable被Observer subscribe(訂閱)
+    fun schedulerSample(){
+        //Observable
+        val getObservable = Observable.just(1, 2, 3, 4, 5, 6)
+
+        //Observer
+        val getObserver = object : Observer<Int> {
+            override fun onComplete() {
+                println("onComplete")
+            }
+
+            override fun onSubscribe(d: Disposable) {
+                println("onSubscribe")
+            }
+
+            override fun onNext(t: Int) {
+                println("onNext: $t")
+            }
+
+            override fun onError(e: Throwable) {
+                println("onError")
+            }
+        }
+
+        //subscribeOn - 指定observable應該在哪個調度器(scheduler)上執行
+        //observeOn - 指定觀察者觀察observable的調度程序(工作線程)
+        //subscribe - 收到observable發射的數據和通知後執行的操作
+
+        //AndroidSchedulers是rxandroid的調度器
+
+        //Subscription
+        getObservable
+            .filter { it > 3 }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(getObserver)
+    }
 
     //將資料轉型為Observable
     fun getModifiedObservable(integer: Int): Observable<Int> {
